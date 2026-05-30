@@ -52,13 +52,10 @@ class TestToolRegistry:
 # ── WebSearchTool ─────────────────────────────────────────────────────────────
 
 class TestWebSearchTool:
-    def test_no_api_key_returns_disabled_message(self) -> None:
+    @pytest.mark.asyncio
+    async def test_no_api_key_returns_disabled_message(self) -> None:
         tool = WebSearchTool(api_key="")
-
-        async def run() -> str:
-            return await tool.execute(query="RAG papers")
-
-        result = asyncio.get_event_loop().run_until_complete(run())
+        result = await tool.execute(query="RAG papers")
         assert "disabled" in result.lower()
 
     @pytest.mark.asyncio
