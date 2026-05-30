@@ -1,0 +1,14 @@
+[
+  {
+    "goal": "What is the capital of France?",
+    "expected_keywords": ["Paris"]
+  },
+  {
+    "goal": "Calculate 15 * 7 and return the result.",
+    "expected_keywords": ["105"]
+  },
+  {
+    "goal": "Research the top 3 benefits of RAG systems.",
+    "expected_keywords": ["retrieval", "context", "accuracy"]
+  }
+]

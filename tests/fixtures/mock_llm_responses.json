@@ -1,0 +1,30 @@
+[
+  {
+    "scenario": "single_step_final_answer",
+    "steps": [
+      {
+        "thought": "I need to search for information",
+        "tool": "web_search",
+        "input": {"query": "test query"},
+        "observation": "Found relevant information about the topic."
+      },
+      {
+        "thought": "I now have enough information to answer",
+        "tool": "final_answer",
+        "input": {"answer": "The answer to the question is 42."},
+        "observation": null
+      }
+    ]
+  },
+  {
+    "scenario": "max_iterations",
+    "steps": [
+      {
+        "thought": "Searching...",
+        "tool": "web_search",
+        "input": {"query": "loop forever"},
+        "observation": "Some result."
+      }
+    ]
+  }
+]
