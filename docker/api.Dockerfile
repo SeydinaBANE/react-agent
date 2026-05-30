@@ -3,42 +3,38 @@ FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
-# Install uv for fast dependency resolution
 RUN pip install --no-cache-dir uv==0.10.0
 
-# Copy dependency manifests (layer cache: only invalidated if deps change)
 COPY pyproject.toml uv.lock* README.md ./
-
-# Copy source so uv can build the package wheel
 COPY src/ src/
 
-# Install production dependencies (fastembed uses ONNX, no PyTorch/CUDA)
+# Install production dependencies (fastembed = ONNX, no PyTorch/CUDA)
 RUN uv sync --frozen --no-dev --no-editable
 
 # Stage 2 — runtime: minimal image, non-root user
 FROM python:3.12-slim AS runtime
 
-# Create non-root user before copying anything
-RUN groupadd --system appgroup \
-    && useradd --system --gid appgroup --no-create-home appuser
-
 WORKDIR /app
 
-# Copy virtual environment (includes installed package) from builder
+# Copy virtual environment from builder
 COPY --from=builder /app/.venv .venv
-
-# Copy config files
 COPY config/ config/
 
-# Set ownership (single layer)
-RUN chown -R appuser:appgroup /app
-
-USER appuser
-
-# Add venv to PATH
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
+    PYTHONDONTWRITEBYTECODE=1 \
+    FASTEMBED_CACHE_PATH=/app/.fastembed_cache
+
+# Pre-download fastembed ONNX model as root (avoids /tmp permission issues)
+# Model is ~66 MB; cached in image so container starts instantly
+RUN python -c "from fastembed import TextEmbedding; list(TextEmbedding('BAAI/bge-small-en-v1.5').embed(['warmup']))"
+
+# Create non-root user and fix all permissions in one layer
+RUN groupadd --system appgroup \
+    && useradd --system --gid appgroup --no-create-home appuser \
+    && chown -R appuser:appgroup /app
+
+USER appuser
 
 EXPOSE 8000
 

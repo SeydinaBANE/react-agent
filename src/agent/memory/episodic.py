@@ -5,6 +5,7 @@ from uuid import uuid4
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.models import (
     Distance,
+    PointIdsList,
     PointStruct,
     ScoredPoint,
     VectorParams,
@@ -69,13 +70,15 @@ class EpisodicMemory:
         """Return top-k most similar observations as plain text."""
         try:
             vector = await self._embedder.embed(query)
-            results: list[ScoredPoint] = await self._client.search(
+            # query_points() is the current API (qdrant-client 1.12+)
+            result = await self._client.query_points(
                 collection_name=self._collection,
-                query_vector=vector,
+                query=vector,
                 limit=top_k,
                 score_threshold=score_threshold,
                 with_payload=True,
             )
+            results: list[ScoredPoint] = result.points
         except Exception as exc:
             raise MemoryError(f"Search failed: {exc}") from exc
 
@@ -91,7 +94,7 @@ class EpisodicMemory:
         try:
             await self._client.delete(
                 collection_name=self._collection,
-                points_selector=[point_id],
+                points_selector=PointIdsList(points=[point_id]),  # type: ignore[arg-type]
             )
         except Exception as exc:
             raise MemoryError(f"Delete failed: {exc}") from exc

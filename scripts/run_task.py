@@ -4,25 +4,67 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
+from pathlib import Path
 
-import httpx
+
+def _load_env(path: str = ".env") -> dict[str, str]:
+    """Parse .env file — strips inline comments, handles quoted values."""
+    import re
+    env: dict[str, str] = {}
+    try:
+        for line in Path(path).read_text().splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, raw = line.partition("=")
+            raw = raw.strip()
+            # Quoted value → strip quotes, no comment stripping
+            if (raw.startswith('"') and raw.endswith('"')) or \
+               (raw.startswith("'") and raw.endswith("'")):
+                value = raw[1:-1]
+            else:
+                # Unquoted → strip inline comment (space+# or tab+#)
+                value = re.split(r"\s+#", raw, maxsplit=1)[0].strip()
+            env[key.strip()] = value
+    except FileNotFoundError:
+        pass
+    return env
+
+
+def _make_dev_token(secret: str) -> str:
+    from jose import jwt
+    return jwt.encode({"sub": "dev-cli"}, secret, algorithm="HS256")
 
 
 def main() -> None:
+    import httpx
+
     parser = argparse.ArgumentParser(description="Submit a goal to the ReAct agent.")
     parser.add_argument("--goal", required=True, help="The goal for the agent.")
     parser.add_argument("--api-url", default="http://localhost:8000", help="Agent API base URL.")
-    parser.add_argument("--token", default="", help="JWT bearer token (if auth is enabled).")
+    parser.add_argument("--token", default="", help="JWT bearer token (overrides auto-generated).")
     args = parser.parse_args()
 
-    headers: dict[str, str] = {}
-    if args.token:
-        headers["Authorization"] = f"Bearer {args.token}"
+    # Auto-generate dev token from JWT_SECRET_KEY in .env
+    token = args.token
+    if not token:
+        env = _load_env()
+        secret = env.get("JWT_SECRET_KEY") or os.environ.get("JWT_SECRET_KEY", "")
+        if secret:
+            token = _make_dev_token(secret)
+        else:
+            print("Warning: no JWT_SECRET_KEY found — requests may fail with 401", file=sys.stderr)
+
+    headers: dict[str, str] = {"Authorization": f"Bearer {token}"} if token else {}
 
     # Submit task
     with httpx.Client(base_url=args.api_url, headers=headers, timeout=30) as client:
         resp = client.post("/api/v1/tasks", json={"goal": args.goal})
+        if resp.status_code == 401:
+            print("Error 401 — set JWT_SECRET_KEY in .env or pass --token", file=sys.stderr)
+            sys.exit(1)
         if resp.status_code != 202:
             print(f"Error: {resp.status_code} — {resp.text}", file=sys.stderr)
             sys.exit(1)
@@ -46,7 +88,7 @@ def main() -> None:
                     except json.JSONDecodeError:
                         print(line)
 
-    print(f"\n[Agent] Task trace: GET {args.api_url}/api/v1/tasks/{task_id}/trace")
+    print(f"\n[Agent] Trace: GET {args.api_url}/api/v1/tasks/{task_id}/trace")
 
 
 def _print_event(event: dict[str, object]) -> None:
@@ -55,19 +97,24 @@ def _print_event(event: dict[str, object]) -> None:
 
     if kind == "step" and isinstance(data, dict):
         iteration = data.get("iteration", "?")
-        thought = data.get("thought", "")[:120]
-        tool = data.get("action", {}).get("tool", "?") if isinstance(data.get("action"), dict) else "?"
-        obs = str(data.get("observation", ""))[:200]
+        thought = str(data.get("thought", ""))[:200]
+        action = data.get("action")
+        tool = action.get("tool", "?") if isinstance(action, dict) else "?"
+        obs = str(data.get("observation", ""))[:300]
         print(f"  [{iteration}] Thought: {thought}")
-        print(f"       Tool:  {tool}")
-        print(f"       Obs:   {obs}\n")
+        print(f"       Tool:   {tool}")
+        print(f"       Result: {obs}\n")
     elif kind == "final":
-        print(f"\n[ANSWER] {data}\n")
+        print(f"\n{'='*60}")
+        print(f"[ANSWER]\n{data}")
+        print(f"{'='*60}\n")
     elif kind == "error":
         print(f"\n[ERROR] {data}\n", file=sys.stderr)
     elif kind == "waiting_approval":
         print(f"\n[APPROVAL NEEDED] {data}")
-        print("  → POST /api/v1/tasks/<id>/approve {'approved': true}\n")
+        print("  → curl -X POST http://localhost:8000/api/v1/tasks/<id>/approve")
+        print("         -H 'Content-Type: application/json'")
+        print("         -d '{\"approved\": true}'\n")
 
 
 if __name__ == "__main__":
