@@ -1,0 +1,11 @@
+# Global owner — all files require review from the maintainer
+* @baneseydina
+
+# Core agent logic
+src/agent/runner/ @baneseydina
+src/agent/tools/ @baneseydina
+
+# Infrastructure & CI
+.github/ @baneseydina
+docker/ @baneseydina
+docker-compose*.yml @baneseydina
