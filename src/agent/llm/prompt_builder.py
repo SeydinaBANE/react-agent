@@ -72,12 +72,17 @@ def build_messages(
         }
         messages.append(assistant_msg)
 
-        # Tool result turn
+        # Tool result turn — truncate large HTML/code observations to avoid
+        # context overflow on models with small context windows
+        observation = step.observation
+        if len(observation) > 3000:
+            observation = observation[:3000] + "\n... [truncated]"
+
         messages.append(
             {
                 "role": "tool",
                 "tool_call_id": tool_call_id,
-                "content": step.observation,
+                "content": observation,
             }
         )
 

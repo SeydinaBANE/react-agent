@@ -33,6 +33,7 @@ class LLMClient:
         self._client = openai.AsyncOpenAI(
             api_key=api_key,
             base_url=base_url,
+            timeout=120.0,  # 2 min — OpenRouter can be slow under load
         )
         self._model = model
 
