@@ -143,5 +143,9 @@ class ReactLoop:
             return await tool.execute(**action.input)
         except ToolError as exc:
             logger.warning("tool_error", tool=action.tool, error=str(exc))
-            # Return the error as observation so the LLM can recover
             return f"[Tool error] {exc}"
+        except (KeyError, TypeError) as exc:
+            # Model called the tool with missing or wrong-type arguments.
+            # Return as observation so the LLM can retry with corrected args.
+            logger.warning("tool_bad_args", tool=action.tool, error=str(exc))
+            return f"[Tool error — wrong arguments: {exc}] Check required params and retry."
