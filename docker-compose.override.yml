@@ -1,0 +1,21 @@
+# Local dev overrides — hot-reload, debug logging, source mounted
+# This file is merged automatically by docker compose (no -f needed).
+
+services:
+  api:
+    build:
+      target: builder  # Stop at builder stage for faster rebuilds
+    volumes:
+      - ./src:/app/src:ro
+      - ./config:/app/config:ro
+    environment:
+      LOG_FORMAT: pretty
+      LOG_LEVEL: DEBUG
+    command:
+      - uvicorn
+      - agent.api.main:app
+      - --reload
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8000"
