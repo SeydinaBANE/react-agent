@@ -73,11 +73,18 @@ class LLMClient:
                 max_tokens=max_tokens,
             )
         except openai.RateLimitError as exc:
-            raise LLMError("Rate limit hit", status_code=429) from exc
+            raise LLMError("Rate limit hit — check OpenRouter credits.", status_code=429) from exc
         except openai.APIStatusError as exc:
-            raise LLMError(str(exc), status_code=exc.status_code) from exc
+            raise LLMError(f"OpenRouter {exc.status_code}: {exc.message}", status_code=exc.status_code) from exc
         except openai.APIError as exc:
-            raise LLMError(str(exc)) from exc
+            raise LLMError(f"OpenRouter API error: {exc}") from exc
+        except KeyError as exc:
+            # OpenRouter returns error responses without 'code' when credits are
+            # exhausted or the model is unavailable — the OpenAI SDK then raises KeyError.
+            raise LLMError(
+                f"Malformed OpenRouter response (missing field {exc}). "
+                "Check your credits at openrouter.ai and model availability."
+            ) from exc
         finally:
             elapsed = time.perf_counter() - start
             LLM_LATENCY.observe(elapsed)
