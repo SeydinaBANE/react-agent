@@ -139,9 +139,17 @@ def _parse_response(response: openai.types.chat.ChatCompletion) -> tuple[str, Ac
 
     tool_call = message.tool_calls[0]
     tool_name = tool_call.function.name
+    raw_args = tool_call.function.arguments
+
     try:
-        tool_input: dict[str, Any] = json.loads(tool_call.function.arguments)
-    except json.JSONDecodeError as exc:
-        raise LLMError(f"Failed to parse tool arguments as JSON: {exc}") from exc
+        tool_input: dict[str, Any] = json.loads(raw_args)
+    except json.JSONDecodeError:
+        # Some models (esp. Haiku) occasionally produce truncated JSON.
+        # Treat it as a final_answer with the raw content rather than crashing.
+        logger.warning("malformed_tool_json", tool=tool_name, raw=raw_args[:200])
+        return thought, Action(
+            tool="final_answer",
+            input={"answer": f"[Note: model returned malformed JSON, using raw output]\n{raw_args}"},
+        )
 
     return thought, Action(tool=tool_name, input=tool_input)
