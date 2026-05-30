@@ -9,7 +9,7 @@ from agent.core.config import Settings
 class TestSettings:
     def test_defaults_with_required_fields(self) -> None:
         s = Settings(
-            anthropic_api_key="sk-ant-test-key",
+            openrouter_api_key="sk-or-test-key",
             jwt_secret_key="a" * 32,
             log_format="json",  # conftest sets LOG_FORMAT=pretty via env
         )
@@ -20,7 +20,7 @@ class TestSettings:
 
     def test_log_level_uppercased(self) -> None:
         s = Settings(
-            anthropic_api_key="sk-ant-test-key",
+            openrouter_api_key="sk-or-test-key",
             jwt_secret_key="a" * 32,
             log_level="debug",
         )
@@ -29,7 +29,7 @@ class TestSettings:
     def test_invalid_log_level_rejected(self) -> None:
         with pytest.raises(ValueError):
             Settings(
-                anthropic_api_key="sk-ant-test-key",
+                openrouter_api_key="sk-or-test-key",
                 jwt_secret_key="a" * 32,
                 log_level="VERBOSE",
             )
@@ -37,7 +37,7 @@ class TestSettings:
     def test_invalid_log_format_rejected(self) -> None:
         with pytest.raises(ValueError):
             Settings(
-                anthropic_api_key="sk-ant-test-key",
+                openrouter_api_key="sk-or-test-key",
                 jwt_secret_key="a" * 32,
                 log_format="xml",
             )
@@ -45,13 +45,13 @@ class TestSettings:
     def test_short_jwt_secret_rejected(self) -> None:
         with pytest.raises(ValueError):
             Settings(
-                anthropic_api_key="sk-ant-test-key",
+                openrouter_api_key="sk-or-test-key",
                 jwt_secret_key="short",
             )
 
     def test_file_io_allowed_paths_list(self) -> None:
         s = Settings(
-            anthropic_api_key="sk-ant-test-key",
+            openrouter_api_key="sk-or-test-key",
             jwt_secret_key="a" * 32,
             file_io_allowed_paths="/tmp, /workspace , /data",
         )

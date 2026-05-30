@@ -62,7 +62,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     registry.register(MemorySearchTool(memory=memory))
 
-    llm = LLMClient(api_key=settings.anthropic_api_key, model=settings.agent_model)
+    llm = LLMClient(
+        api_key=settings.openrouter_api_key,
+        model=settings.agent_model,
+        base_url=settings.openrouter_base_url,
+    )
     react_loop = ReactLoop(
         llm=llm,
         registry=registry,

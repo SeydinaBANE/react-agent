@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import json
 import time
 from typing import Any
 
-import anthropic
+import openai
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -12,7 +13,7 @@ from tenacity import (
 )
 
 from agent.core.exceptions import LLMError
-from agent.core.schemas import Action, AgentStep
+from agent.core.schemas import Action
 from agent.core.telemetry import LLM_LATENCY, get_logger
 
 logger = get_logger(__name__)
@@ -21,19 +22,22 @@ _FINAL_ANSWER_TOOL = "final_answer"
 
 
 class LLMClient:
-    """Thin async wrapper around the Anthropic SDK.
+    """Async LLM client targeting OpenRouter (OpenAI-compatible API).
 
-    Uses Claude's native tool_use to produce structured Thought + Action.
-    The caller passes a list of tool definitions (JSON schemas); Claude
-    responds with either a tool_use block (= Action) or a final_answer call.
+    Uses function/tool calling to produce structured Thought + Action.
+    The caller passes tool definitions; the model responds with either
+    a tool call (= Action) or the special `final_answer` call.
     """
 
-    def __init__(self, api_key: str, model: str) -> None:
-        self._client = anthropic.AsyncAnthropic(api_key=api_key)
+    def __init__(self, api_key: str, model: str, base_url: str = "https://openrouter.ai/api/v1") -> None:
+        self._client = openai.AsyncOpenAI(
+            api_key=api_key,
+            base_url=base_url,
+        )
         self._model = model
 
     @retry(
-        retry=retry_if_exception_type((anthropic.RateLimitError, anthropic.APIStatusError)),
+        retry=retry_if_exception_type((openai.RateLimitError, openai.APIStatusError)),
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=30),
         reraise=True,
@@ -45,28 +49,34 @@ class LLMClient:
         tool_schemas: list[dict[str, Any]],
         max_tokens: int = 2048,
     ) -> tuple[str, Action]:
-        """Call Claude and return (thought, action).
+        """Call the model and return (thought, action).
 
-        Claude is instructed to always use a tool. If the task is done, it
-        calls the special `final_answer` tool with field `answer: str`.
+        The model is instructed to always call a tool. When done, it calls
+        `final_answer` with field `answer: str`.
         """
-        tools = [*tool_schemas, _final_answer_tool_schema()]
+        all_tools = [*tool_schemas, _final_answer_tool_schema()]
+        openai_tools = [_to_openai_tool(t) for t in all_tools]
+
+        # Prepend system message
+        full_messages: list[dict[str, Any]] = [
+            {"role": "system", "content": system_prompt},
+            *messages,
+        ]
 
         start = time.perf_counter()
         try:
-            response = await self._client.messages.create(
+            response = await self._client.chat.completions.create(
                 model=self._model,
+                messages=full_messages,  # type: ignore[arg-type]
+                tools=openai_tools,  # type: ignore[arg-type]
+                tool_choice="required",
                 max_tokens=max_tokens,
-                system=system_prompt,
-                messages=messages,
-                tools=tools,  # type: ignore[arg-type]
-                tool_choice={"type": "any"},
             )
-        except anthropic.RateLimitError as exc:
+        except openai.RateLimitError as exc:
             raise LLMError("Rate limit hit", status_code=429) from exc
-        except anthropic.APIStatusError as exc:
+        except openai.APIStatusError as exc:
             raise LLMError(str(exc), status_code=exc.status_code) from exc
-        except anthropic.APIError as exc:
+        except openai.APIError as exc:
             raise LLMError(str(exc)) from exc
         finally:
             elapsed = time.perf_counter() - start
@@ -77,9 +87,20 @@ class LLMClient:
             "llm_response",
             thought=thought[:120],
             tool=action.tool,
-            stop_reason=response.stop_reason,
+            finish_reason=response.choices[0].finish_reason,
         )
         return thought, action
+
+
+def _to_openai_tool(schema: dict[str, Any]) -> dict[str, Any]:
+    """Convert our internal tool schema to OpenAI function tool format."""
+    function_def: dict[str, Any] = {
+        "name": schema["name"],
+        "description": schema.get("description", ""),
+        # Anthropic uses "input_schema", OpenAI uses "parameters"
+        "parameters": schema.get("parameters", schema.get("input_schema", {"type": "object", "properties": {}})),
+    }
+    return {"type": "function", "function": function_def}
 
 
 def _final_answer_tool_schema() -> dict[str, Any]:
@@ -89,7 +110,7 @@ def _final_answer_tool_schema() -> dict[str, Any]:
             "Call this tool ONLY when you have fully completed the goal "
             "and have a final answer to give the user."
         ),
-        "input_schema": {
+        "parameters": {
             "type": "object",
             "properties": {
                 "answer": {"type": "string", "description": "The complete final answer."},
@@ -99,41 +120,20 @@ def _final_answer_tool_schema() -> dict[str, Any]:
     }
 
 
-def _parse_response(response: anthropic.types.Message) -> tuple[str, Action]:
-    thought = ""
-    tool_name: str | None = None
-    tool_input: dict[str, Any] = {}
+def _parse_response(response: openai.types.chat.ChatCompletion) -> tuple[str, Action]:
+    choice = response.choices[0]
+    message = choice.message
 
-    for block in response.content:
-        if block.type == "text":
-            thought = block.text
-        elif block.type == "tool_use":
-            tool_name = block.name
-            tool_input = dict(block.input)  # type: ignore[arg-type]
+    thought: str = message.content or ""
 
-    if tool_name is None:
-        raise LLMError("Claude returned no tool_use block — cannot extract action.")
+    if not message.tool_calls:
+        raise LLMError("Model returned no tool call — cannot extract action.")
 
-    is_destructive = tool_input.pop("__destructive__", False)
-    return thought, Action(
-        tool=tool_name,
-        input=tool_input,
-        is_destructive=bool(is_destructive),
-    )
+    tool_call = message.tool_calls[0]
+    tool_name = tool_call.function.name
+    try:
+        tool_input: dict[str, Any] = json.loads(tool_call.function.arguments)
+    except json.JSONDecodeError as exc:
+        raise LLMError(f"Failed to parse tool arguments as JSON: {exc}") from exc
 
-
-def build_tool_result_message(
-    step: AgentStep,
-    tool_use_id: str,
-) -> dict[str, Any]:
-    """Build the assistant+user message pair needed to continue the conversation."""
-    return {
-        "role": "user",
-        "content": [
-            {
-                "type": "tool_result",
-                "tool_use_id": tool_use_id,
-                "content": step.observation,
-            }
-        ],
-    }
+    return thought, Action(tool=tool_name, input=tool_input)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from agent.core.schemas import AgentStep
@@ -46,40 +47,37 @@ def build_messages(
     goal: str,
     steps: list[AgentStep],
 ) -> list[dict[str, Any]]:
-    """Convert goal + completed steps into the Anthropic messages format."""
+    """Convert goal + completed steps into OpenAI-compatible messages format."""
     messages: list[dict[str, Any]] = [
         {"role": "user", "content": f"Goal: {goal}"},
     ]
 
     for step in steps:
-        # Assistant turn: thought + tool_use
-        assistant_content: list[dict[str, Any]] = []
-        if step.thought:
-            assistant_content.append({"type": "text", "text": step.thought})
+        tool_call_id = f"call_{step.iteration}"
 
-        # We store a synthetic tool_use_id derived from iteration number
-        tool_use_id = f"tool_call_{step.iteration}"
-        assistant_content.append(
-            {
-                "type": "tool_use",
-                "id": tool_use_id,
-                "name": step.action.tool,
-                "input": step.action.input,
-            }
-        )
-        messages.append({"role": "assistant", "content": assistant_content})
+        # Assistant turn: optional thought text + tool_calls array
+        assistant_msg: dict[str, Any] = {
+            "role": "assistant",
+            "content": step.thought or "",
+            "tool_calls": [
+                {
+                    "id": tool_call_id,
+                    "type": "function",
+                    "function": {
+                        "name": step.action.tool,
+                        "arguments": json.dumps(step.action.input),
+                    },
+                }
+            ],
+        }
+        messages.append(assistant_msg)
 
-        # User turn: tool result
+        # Tool result turn
         messages.append(
             {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "tool_result",
-                        "tool_use_id": tool_use_id,
-                        "content": step.observation,
-                    }
-                ],
+                "role": "tool",
+                "tool_call_id": tool_call_id,
+                "content": step.observation,
             }
         )
 

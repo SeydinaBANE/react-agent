@@ -25,7 +25,7 @@ def client() -> Iterator[TestClient]:
     from agent.api.main import create_app
 
     test_settings = Settings(
-        anthropic_api_key="sk-ant-test-key",
+        openrouter_api_key="sk-or-test-key",
         jwt_secret_key="test-secret-key-minimum-32-chars-!!",
         log_format="pretty",
     )

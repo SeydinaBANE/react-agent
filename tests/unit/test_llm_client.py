@@ -1,6 +1,7 @@
 """Tests for LLM client and prompt builder (LLM fully mocked)."""
 from __future__ import annotations
 
+import json
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -8,7 +9,7 @@ import pytest
 
 from agent.core.exceptions import LLMError
 from agent.core.schemas import Action, AgentStep
-from agent.llm.client import LLMClient, _final_answer_tool_schema, _parse_response
+from agent.llm.client import LLMClient, _final_answer_tool_schema, _parse_response, _to_openai_tool
 from agent.llm.prompt_builder import build_messages, build_system_prompt
 
 
@@ -35,7 +36,7 @@ class TestBuildMessages:
         assert msgs[0]["role"] == "user"
         assert "Research RAG" in msgs[0]["content"]
 
-    def test_step_produces_assistant_and_user_turns(self) -> None:
+    def test_step_produces_assistant_and_tool_turns(self) -> None:
         step = AgentStep(
             iteration=1,
             thought="I should search",
@@ -44,12 +45,12 @@ class TestBuildMessages:
             latency_ms=100,
         )
         msgs = build_messages("goal", steps=[step])
-        # [user(goal), assistant(tool_use), user(tool_result)]
+        # [user(goal), assistant(tool_calls), tool(result)]
         assert len(msgs) == 3
         assert msgs[1]["role"] == "assistant"
-        assert msgs[2]["role"] == "user"
+        assert msgs[2]["role"] == "tool"
 
-    def test_tool_use_id_matches_tool_result_id(self) -> None:
+    def test_tool_call_id_matches_result_id(self) -> None:
         step = AgentStep(
             iteration=2,
             thought="Searching",
@@ -58,36 +59,74 @@ class TestBuildMessages:
             latency_ms=50,
         )
         msgs = build_messages("goal", steps=[step])
-        tool_use_id = msgs[1]["content"][-1]["id"]
-        tool_result_id = msgs[2]["content"][0]["tool_use_id"]
-        assert tool_use_id == tool_result_id
+        tool_call_id = msgs[1]["tool_calls"][0]["id"]
+        result_id = msgs[2]["tool_call_id"]
+        assert tool_call_id == result_id
+
+    def test_tool_input_serialized_as_json(self) -> None:
+        step = AgentStep(
+            iteration=1,
+            thought="t",
+            action=Action(tool="web_search", input={"query": "RAG", "max_results": 5}),
+            observation="o",
+            latency_ms=0,
+        )
+        msgs = build_messages("goal", steps=[step])
+        args_str = msgs[1]["tool_calls"][0]["function"]["arguments"]
+        args = json.loads(args_str)
+        assert args["query"] == "RAG"
+        assert args["max_results"] == 5
 
 
-# ── final answer tool schema ──────────────────────────────────────────────────
+# ── tool schema conversion ────────────────────────────────────────────────────
+
+class TestToOpenaiTool:
+    def test_wraps_in_function_type(self) -> None:
+        schema = {
+            "name": "web_search",
+            "description": "Search the web",
+            "input_schema": {"type": "object", "properties": {"query": {"type": "string"}}},
+        }
+        openai_tool = _to_openai_tool(schema)
+        assert openai_tool["type"] == "function"
+        assert openai_tool["function"]["name"] == "web_search"
+        assert "parameters" in openai_tool["function"]
+
+    def test_uses_parameters_key_if_present(self) -> None:
+        schema = {
+            "name": "my_tool",
+            "description": "desc",
+            "parameters": {"type": "object", "properties": {}},
+        }
+        openai_tool = _to_openai_tool(schema)
+        assert openai_tool["function"]["parameters"] == {"type": "object", "properties": {}}
+
 
 class TestFinalAnswerSchema:
     def test_has_required_fields(self) -> None:
         schema = _final_answer_tool_schema()
         assert schema["name"] == "final_answer"
-        assert "answer" in schema["input_schema"]["properties"]
-        assert "answer" in schema["input_schema"]["required"]
+        assert "answer" in schema["parameters"]["properties"]
+        assert "answer" in schema["parameters"]["required"]
 
 
 # ── _parse_response ───────────────────────────────────────────────────────────
 
 def _make_mock_response(tool_name: str, tool_input: dict[str, Any], thought: str = "") -> Any:
-    text_block = MagicMock()
-    text_block.type = "text"
-    text_block.text = thought
+    tool_call = MagicMock()
+    tool_call.function.name = tool_name
+    tool_call.function.arguments = json.dumps(tool_input)
 
-    tool_block = MagicMock()
-    tool_block.type = "tool_use"
-    tool_block.name = tool_name
-    tool_block.input = tool_input
+    message = MagicMock()
+    message.content = thought
+    message.tool_calls = [tool_call]
+
+    choice = MagicMock()
+    choice.message = message
+    choice.finish_reason = "tool_calls"
 
     response = MagicMock()
-    response.content = [text_block, tool_block] if thought else [tool_block]
-    response.stop_reason = "tool_use"
+    response.choices = [choice]
     return response
 
 
@@ -99,12 +138,14 @@ class TestParseResponse:
         assert action.tool == "web_search"
         assert action.input == {"query": "RAG"}
 
-    def test_raises_if_no_tool_use(self) -> None:
-        text_block = MagicMock()
-        text_block.type = "text"
-        text_block.text = "Just some text"
+    def test_raises_if_no_tool_calls(self) -> None:
+        message = MagicMock()
+        message.content = "Just text"
+        message.tool_calls = None
+        choice = MagicMock()
+        choice.message = message
         response = MagicMock()
-        response.content = [text_block]
+        response.choices = [choice]
         with pytest.raises(LLMError):
             _parse_response(response)
 
@@ -115,18 +156,22 @@ class TestParseResponse:
         assert action.input["answer"] == "Done!"
 
 
-# ── LLMClient.call (mock Anthropic SDK) ──────────────────────────────────────
+# ── LLMClient.call (mock OpenAI SDK) ─────────────────────────────────────────
 
 class TestLLMClient:
     @pytest.fixture
     def client(self) -> LLMClient:
-        return LLMClient(api_key="sk-test", model="claude-3-5-haiku-20241022")
+        return LLMClient(
+            api_key="sk-or-test",
+            model="anthropic/claude-3.5-sonnet",
+            base_url="https://openrouter.ai/api/v1",
+        )
 
     @pytest.mark.asyncio
     async def test_call_returns_thought_and_action(self, client: LLMClient) -> None:
         mock_response = _make_mock_response("web_search", {"query": "test"}, thought="Searching")
 
-        with patch.object(client._client.messages, "create", new=AsyncMock(return_value=mock_response)):
+        with patch.object(client._client.chat.completions, "create", new=AsyncMock(return_value=mock_response)):
             thought, action = await client.call(
                 messages=[{"role": "user", "content": "Goal: test"}],
                 system_prompt="system",
@@ -138,12 +183,12 @@ class TestLLMClient:
 
     @pytest.mark.asyncio
     async def test_raises_llm_error_on_api_error(self, client: LLMClient) -> None:
-        import anthropic as ant
+        import openai as oai
 
         with patch.object(
-            client._client.messages,
+            client._client.chat.completions,
             "create",
-            new=AsyncMock(side_effect=ant.APIError("error", request=MagicMock(), body=None)),
+            new=AsyncMock(side_effect=oai.APIError("error", request=MagicMock(), body=None)),
         ):
             with pytest.raises(LLMError):
                 await client.call(
