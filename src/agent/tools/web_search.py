@@ -52,8 +52,8 @@ class WebSearchTool(BaseTool):
         query: str = kwargs["query"]
         max_results: int = min(int(kwargs.get("max_results", self._default_max_results)), 10)
 
-        if not self._api_key:
-            return f"[web_search disabled — no BRAVE_API_KEY] Simulated search for: {query}"
+        if not self._api_key or self._api_key.startswith("BSA...") or len(self._api_key) < 20:
+            return f"[web_search disabled — set a valid BRAVE_API_KEY in .env] Query: {query}"
 
         with TOOL_LATENCY.labels(tool=self.name).time():
             try:
