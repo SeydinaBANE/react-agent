@@ -4,7 +4,7 @@
 services:
   api:
     build:
-      target: builder  # Stop at builder stage for faster rebuilds
+      target: runtime  # Use full runtime image in dev too
     volumes:
       - ./src:/app/src:ro
       - ./config:/app/config:ro

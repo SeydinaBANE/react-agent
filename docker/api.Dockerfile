@@ -7,7 +7,7 @@ WORKDIR /app
 RUN pip install --no-cache-dir uv==0.10.0
 
 # Copy only dependency files first (layer cache optimization)
-COPY pyproject.toml uv.lock* ./
+COPY pyproject.toml uv.lock* README.md ./
 
 # Install production dependencies only, no editable install
 RUN uv sync --frozen --no-dev --no-editable
