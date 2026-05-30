@@ -6,8 +6,11 @@ WORKDIR /app
 # Install uv for fast dependency resolution
 RUN pip install --no-cache-dir uv==0.10.0
 
-# Copy only dependency files first (layer cache optimization)
+# Copy dependency manifests (layer cache: only invalidated if deps change)
 COPY pyproject.toml uv.lock* README.md ./
+
+# Copy source so uv can build the package wheel
+COPY src/ src/
 
 # Install production dependencies (fastembed uses ONNX, no PyTorch/CUDA)
 RUN uv sync --frozen --no-dev --no-editable
@@ -21,11 +24,10 @@ RUN groupadd --system appgroup \
 
 WORKDIR /app
 
-# Copy virtual environment from builder
+# Copy virtual environment (includes installed package) from builder
 COPY --from=builder /app/.venv .venv
 
-# Copy application source and config
-COPY src/ src/
+# Copy config files
 COPY config/ config/
 
 # Set ownership (single layer)

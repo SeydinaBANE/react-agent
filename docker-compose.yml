@@ -32,10 +32,11 @@ services:
     volumes:
       - qdrant_data:/qdrant/storage
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:6333/readyz || exit 1"]
-      interval: 15s
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/localhost/6333'"]
+      interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 6
+      start_period: 5s
 
   # ── Prometheus ────────────────────────────────────────────────────────────
   prometheus:
