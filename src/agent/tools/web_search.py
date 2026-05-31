@@ -41,7 +41,7 @@ class WebSearchTool(BaseTool):
         self._timeout = timeout
         self._default_max_results = max_results
 
-    @retry(  # type: ignore[misc]
+    @retry(
         retry=retry_if_exception_type(httpx.TransportError),
         stop=stop_after_attempt(2),
         wait=wait_fixed(1),

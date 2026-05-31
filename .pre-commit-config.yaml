@@ -24,6 +24,8 @@ repos:
           - structlog>=24.4
           - pytest>=8.3
           - pytest-asyncio>=0.24
+          - openai>=1.51
+          - tenacity>=9.0
 
   # ── Bandit : security (SAST) ──────────────────────────────────────────────
   - repo: https://github.com/PyCQA/bandit

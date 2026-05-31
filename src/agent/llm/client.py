@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import time
-from typing import Any
+from typing import Any, cast
 
 import openai
 from tenacity import (
@@ -39,7 +39,7 @@ class LLMClient:
         )
         self._model = model
 
-    @retry(  # type: ignore[misc]
+    @retry(
         retry=retry_if_exception(lambda exc: isinstance(exc, LLMError) and exc.recoverable),
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=30),
@@ -70,8 +70,8 @@ class LLMClient:
         try:
             response = await self._client.chat.completions.create(
                 model=self._model,
-                messages=full_messages,
-                tools=openai_tools,
+                messages=cast(Any, full_messages),
+                tools=cast(Any, openai_tools),
                 tool_choice="required",
                 max_tokens=max_tokens,
             )
@@ -144,8 +144,8 @@ def _parse_response(response: openai.types.chat.ChatCompletion) -> tuple[str, Ac
         raise LLMError("Model returned no tool call — cannot extract action.")
 
     tool_call = message.tool_calls[0]
-    tool_name = tool_call.function.name
-    raw_args = tool_call.function.arguments
+    tool_name = tool_call.function.name  # type: ignore[union-attr]
+    raw_args = tool_call.function.arguments  # type: ignore[union-attr]
 
     try:
         tool_input: dict[str, Any] = json.loads(raw_args)

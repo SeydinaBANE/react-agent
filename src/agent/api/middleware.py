@@ -6,7 +6,6 @@ from uuid import uuid4
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from jose import JWTError, jwt
-from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from agent.core.schemas import ProblemDetail
@@ -65,11 +64,11 @@ def _problem(status: int, title: str, detail: str) -> JSONResponse:
     )
 
 
-def rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+def rate_limit_handler(request: Request, exc: Exception) -> JSONResponse:
     body = ProblemDetail(
         title="Too Many Requests",
         status=429,
-        detail=str(exc.detail),
+        detail=str(getattr(exc, "detail", str(exc))),
         instance=str(request.url),
     )
     return JSONResponse(
