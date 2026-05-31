@@ -3,9 +3,16 @@
 **Autonomous LLM agent** built on the [ReAct](https://arxiv.org/abs/2210.03629) pattern — the agent thinks, picks a tool, observes the result, and repeats until it has a final answer.
 
 [![CI](https://github.com/SeydinaBANE/react-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/SeydinaBANE/react-agent/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/coverage-85%25-brightgreen)](https://github.com/SeydinaBANE/react-agent/actions)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)](https://www.python.org)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![Mypy](https://img.shields.io/badge/mypy-strict-blue)](https://mypy.readthedocs.io)
+[![uv](https://img.shields.io/badge/uv-package%20manager-blueviolet)](https://github.com/astral-sh/uv)
+[![Docker](https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white)](docker/api.Dockerfile)
+[![OpenRouter](https://img.shields.io/badge/LLM-OpenRouter-ff6b35)](https://openrouter.ai)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![Qdrant](https://img.shields.io/badge/Qdrant-vector%20store-dc244c)](https://qdrant.tech)
 
 ---
 
