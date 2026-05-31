@@ -22,7 +22,7 @@ class WebSearchTool(BaseTool):
         "Search the web for information. Use when you need up-to-date facts, "
         "recent papers, or any information not in your training data."
     )
-    input_schema: dict[str, Any] = {  # noqa: RUF012
+    input_schema: dict[str, Any] = {
         "type": "object",
         "properties": {
             "query": {"type": "string", "description": "The search query."},
@@ -47,7 +47,7 @@ class WebSearchTool(BaseTool):
         wait=wait_fixed(1),
         reraise=True,
     )
-    async def execute(self, **kwargs: Any) -> str:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> str:
         query: str = kwargs["query"]
         max_results: int = min(int(kwargs.get("max_results", self._default_max_results)), 10)
 

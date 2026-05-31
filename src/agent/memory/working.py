@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC
+
 from agent.core.schemas import AgentStep, TaskStatus, TaskTrace
 
 
@@ -48,15 +50,15 @@ class WorkingMemory:
         self._trace.status = status
 
     def set_final_answer(self, answer: str) -> None:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         self._trace.final_answer = answer
         self._trace.status = "completed"
-        self._trace.completed_at = datetime.now(timezone.utc)
+        self._trace.completed_at = datetime.now(UTC)
 
     def set_failed(self, reason: str) -> None:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         self._trace.final_answer = f"[FAILED] {reason}"
         self._trace.status = "failed"
-        self._trace.completed_at = datetime.now(timezone.utc)
+        self._trace.completed_at = datetime.now(UTC)

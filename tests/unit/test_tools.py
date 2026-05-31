@@ -137,7 +137,7 @@ class TestFileIOTool:
 
     @pytest.mark.asyncio
     async def test_path_outside_whitelist_raises(self) -> None:
-        tool = FileIOTool(allowed_paths=["/tmp"])  # noqa: S108
+        tool = FileIOTool(allowed_paths=["/tmp"])
         with pytest.raises(ToolError, match="not within"):
             await tool.execute(operation="read", path="/etc/passwd")
 

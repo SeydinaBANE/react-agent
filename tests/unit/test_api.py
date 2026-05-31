@@ -1,4 +1,5 @@
 """Tests for FastAPI endpoints (all external services mocked)."""
+
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Iterator
@@ -21,8 +22,8 @@ def _build_mock_state() -> tuple[MagicMock, MagicMock, dict[str, Any]]:
 
 @pytest.fixture
 def client() -> Iterator[TestClient]:
-    from agent.core.config import Settings
     from agent.api.main import create_app
+    from agent.core.config import Settings
 
     test_settings = Settings(
         openrouter_api_key="sk-or-test-key",
@@ -59,6 +60,7 @@ def _auth_header() -> dict[str, str]:
 
 # ── Health endpoints ──────────────────────────────────────────────────────────
 
+
 class TestHealthEndpoints:
     def test_health_returns_ok(self, client: TestClient) -> None:
         resp = client.get("/health")
@@ -71,6 +73,7 @@ class TestHealthEndpoints:
 
 
 # ── Task CRUD ─────────────────────────────────────────────────────────────────
+
 
 class TestTaskEndpoints:
     def test_create_task_returns_202(self, client: TestClient) -> None:

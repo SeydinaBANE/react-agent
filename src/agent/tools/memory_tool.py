@@ -28,7 +28,7 @@ class MemorySearchTool(BaseTool):
             },
             "top_k": {
                 "type": "integer",
-                "description": "Number of results to return (1–10).",
+                "description": "Number of results to return (1-10).",
                 "default": 5,
             },
         },
@@ -36,7 +36,7 @@ class MemorySearchTool(BaseTool):
     }
     is_destructive = False
 
-    def __init__(self, memory: "EpisodicMemory") -> None:
+    def __init__(self, memory: EpisodicMemory) -> None:
         self._memory = memory
 
     async def execute(self, **kwargs: Any) -> str:

@@ -1,14 +1,14 @@
 """Tests for core schemas."""
+
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 
 import pytest
 
 from agent.core.schemas import (
     Action,
     AgentStep,
-    ApproveActionRequest,
     CreateTaskRequest,
     ProblemDetail,
     StepEvent,

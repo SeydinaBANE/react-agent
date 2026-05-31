@@ -1,4 +1,5 @@
 """Tests for telemetry: correlation IDs and structlog setup."""
+
 from __future__ import annotations
 
 from agent.core.telemetry import get_correlation_id, set_correlation_id

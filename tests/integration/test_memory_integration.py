@@ -3,6 +3,7 @@
 Requires Docker. The Qdrant container is started automatically by Testcontainers.
 Run with: pytest tests/integration/ -v
 """
+
 from __future__ import annotations
 
 import pytest

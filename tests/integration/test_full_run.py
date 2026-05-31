@@ -3,10 +3,11 @@
 Requires Docker for Qdrant. LLM is mocked to avoid real API calls.
 Run with: pytest tests/integration/ -v
 """
+
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -36,7 +37,7 @@ async def test_react_loop_completes_with_real_memory(qdrant_container: Any) -> N
     from agent.tools.code_executor import CodeExecutorTool
 
     # Real Qdrant
-    client_info = qdrant_container.get_client()
+    qdrant_container.get_client()
     host = qdrant_container.get_container_host_ip()
     port = qdrant_container.get_exposed_port(6333)
     qdrant = AsyncQdrantClient(host=host, port=int(port))

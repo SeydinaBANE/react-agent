@@ -1,17 +1,11 @@
 from __future__ import annotations
 
-import asyncio
-from typing import Annotated
-
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from fastapi.responses import JSONResponse
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 
 from agent.core.schemas import (
     ApproveActionRequest,
     CreateTaskRequest,
-    ProblemDetail,
     TaskSummary,
     TaskTrace,
 )
@@ -91,7 +85,9 @@ async def get_trace(task_id: str) -> TaskTrace:
 
 
 @router.post("/{task_id}/approve", status_code=200)
-async def approve_action(task_id: str, body: ApproveActionRequest, request: Request) -> JSONResponse:
+async def approve_action(
+    task_id: str, body: ApproveActionRequest, request: Request
+) -> JSONResponse:
     """Approve or reject a pending destructive action for a task."""
     trace = _get_trace_or_404(task_id)
     if trace.status != "waiting_approval":

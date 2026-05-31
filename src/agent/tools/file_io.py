@@ -52,7 +52,9 @@ class FileIOTool(BaseTool):
             except ValueError:
                 continue
         allowed_str = ", ".join(str(p) for p in self._allowed)
-        raise ToolError(self.name, f"Path '{path}' is not within allowed directories: {allowed_str}")
+        raise ToolError(
+            self.name, f"Path '{path}' is not within allowed directories: {allowed_str}"
+        )
 
     async def execute(self, **kwargs: Any) -> str:
         operation: str = kwargs["operation"]

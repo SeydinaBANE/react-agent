@@ -1,4 +1,5 @@
 """Shared pytest fixtures for all test levels."""
+
 from __future__ import annotations
 
 import os
@@ -17,6 +18,7 @@ os.environ.setdefault("LOG_FORMAT", "pretty")
 def reset_lru_cache() -> Generator[None, None, None]:
     """Reset settings cache between tests so env overrides take effect."""
     from agent.core.config import get_settings
+
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()

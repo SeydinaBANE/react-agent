@@ -26,7 +26,7 @@ class CodeExecutorTool(BaseTool):
         "data transformations, or generating formatted output. "
         "Network access and file I/O are not available inside the executor."
     )
-    input_schema: dict[str, Any] = {  # noqa: RUF012
+    input_schema: dict[str, Any] = {
         "type": "object",
         "properties": {
             "code": {"type": "string", "description": "Python code to execute."},
@@ -39,7 +39,7 @@ class CodeExecutorTool(BaseTool):
         self._timeout = timeout_s
         self._enabled = enabled
 
-    async def execute(self, **kwargs: Any) -> str:  # noqa: ANN401
+    async def execute(self, **kwargs: Any) -> str:
         if not self._enabled:
             return "[code_executor is disabled in this environment]"
 

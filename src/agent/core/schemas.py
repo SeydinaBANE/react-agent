@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import uuid4
 
@@ -8,10 +8,11 @@ from pydantic import BaseModel, Field
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 # ── Tool action ───────────────────────────────────────────────────────────────
+
 
 class Action(BaseModel):
     tool: str
@@ -20,6 +21,7 @@ class Action(BaseModel):
 
 
 # ── Agent step (one ReAct iteration) ─────────────────────────────────────────
+
 
 class AgentStep(BaseModel):
     iteration: int = Field(..., ge=1)
@@ -37,6 +39,7 @@ TaskStatus = Literal["running", "waiting_approval", "completed", "failed"]
 
 # ── Full task trace ───────────────────────────────────────────────────────────
 
+
 class TaskTrace(BaseModel):
     task_id: str = Field(default_factory=lambda: str(uuid4()))
     goal: str
@@ -51,6 +54,7 @@ class TaskTrace(BaseModel):
 
 
 # ── API request / response ────────────────────────────────────────────────────
+
 
 class CreateTaskRequest(BaseModel):
     goal: str = Field(..., min_length=1, max_length=2000)
@@ -72,6 +76,7 @@ class TaskSummary(BaseModel):
 
 # ── SSE event ─────────────────────────────────────────────────────────────────
 
+
 class StepEvent(BaseModel):
     event: Literal["step", "final", "error", "waiting_approval"] = "step"
     data: AgentStep | str
@@ -81,6 +86,7 @@ class StepEvent(BaseModel):
 
 
 # ── RFC 7807 problem details ──────────────────────────────────────────────────
+
 
 class ProblemDetail(BaseModel):
     type: str = "about:blank"

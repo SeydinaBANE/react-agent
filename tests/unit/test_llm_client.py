@@ -1,4 +1,5 @@
 """Tests for LLM client and prompt builder (LLM fully mocked)."""
+
 from __future__ import annotations
 
 import json
@@ -12,8 +13,8 @@ from agent.core.schemas import Action, AgentStep
 from agent.llm.client import LLMClient, _final_answer_tool_schema, _parse_response, _to_openai_tool
 from agent.llm.prompt_builder import build_messages, build_system_prompt
 
-
 # ── prompt builder ────────────────────────────────────────────────────────────
+
 
 class TestBuildSystemPrompt:
     def test_contains_max_iterations(self) -> None:
@@ -25,7 +26,9 @@ class TestBuildSystemPrompt:
         assert "No relevant past observations" in prompt
 
     def test_memory_snippets_injected(self) -> None:
-        prompt = build_system_prompt(max_iterations=5, memory_snippets=["Found paper A", "Found paper B"])
+        prompt = build_system_prompt(
+            max_iterations=5, memory_snippets=["Found paper A", "Found paper B"]
+        )
         assert "Found paper A" in prompt
         assert "Found paper B" in prompt
 
@@ -80,6 +83,7 @@ class TestBuildMessages:
 
 # ── tool schema conversion ────────────────────────────────────────────────────
 
+
 class TestToOpenaiTool:
     def test_wraps_in_function_type(self) -> None:
         schema = {
@@ -111,6 +115,7 @@ class TestFinalAnswerSchema:
 
 
 # ── _parse_response ───────────────────────────────────────────────────────────
+
 
 def _make_mock_response(tool_name: str, tool_input: dict[str, Any], thought: str = "") -> Any:
     tool_call = MagicMock()
@@ -158,6 +163,7 @@ class TestParseResponse:
 
 # ── LLMClient.call (mock OpenAI SDK) ─────────────────────────────────────────
 
+
 class TestLLMClient:
     @pytest.fixture
     def client(self) -> LLMClient:
@@ -171,7 +177,8 @@ class TestLLMClient:
     async def test_call_returns_thought_and_action(self, client: LLMClient) -> None:
         mock_response = _make_mock_response("web_search", {"query": "test"}, thought="Searching")
 
-        with patch.object(client._client.chat.completions, "create", new=AsyncMock(return_value=mock_response)):
+        mock_create = AsyncMock(return_value=mock_response)
+        with patch.object(client._client.chat.completions, "create", new=mock_create):
             thought, action = await client.call(
                 messages=[{"role": "user", "content": "Goal: test"}],
                 system_prompt="system",

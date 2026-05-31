@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-import signal
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from qdrant_client import AsyncQdrantClient
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from starlette.responses import Response
-
-from qdrant_client import AsyncQdrantClient
 
 from agent.api.middleware import (
     CorrelationIdMiddleware,
@@ -27,7 +25,6 @@ from agent.memory.embedder import Embedder
 from agent.memory.episodic import EpisodicMemory
 from agent.runner.approval_gate import ApprovalGate
 from agent.runner.react_loop import ReactLoop
-from agent.runner.tracer import Tracer
 from agent.tools.base import ToolRegistry
 from agent.tools.code_executor import CodeExecutorTool
 from agent.tools.file_io import FileIOTool
@@ -53,10 +50,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     registry = ToolRegistry()
     registry.register(WebSearchTool(api_key=settings.brave_api_key))
-    registry.register(CodeExecutorTool(
-        timeout_s=settings.agent_tool_timeout,
-        enabled=settings.agent_code_executor_enabled,
-    ))
+    registry.register(
+        CodeExecutorTool(
+            timeout_s=settings.agent_tool_timeout,
+            enabled=settings.agent_code_executor_enabled,
+        )
+    )
     registry.register(FileIOTool(allowed_paths=settings.file_io_allowed_paths_list))
     registry.register(HttpClientTool())
 
@@ -78,7 +77,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # ── Attach to app.state ──────────────────────────────────────────────────
     app.state.react_loop = react_loop
     app.state.approval_gate = gate
-    app.state.tracer_registry: dict[str, object] = {}
+    app.state.tracer_registry = {}
 
     logger.info("agent_startup_complete", model=settings.agent_model)
     yield
@@ -104,10 +103,10 @@ def create_app() -> FastAPI:
     )
 
     app.state.limiter = limiter
-    app.add_exception_handler(Exception, _global_error_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(Exception, _global_error_handler)
     from slowapi.errors import RateLimitExceeded
 
-    app.add_exception_handler(RateLimitExceeded, rate_limit_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(RateLimitExceeded, rate_limit_handler)
 
     # ── Middleware (LIFO order: last added = outermost) ───────────────────────
     app.add_middleware(
@@ -129,12 +128,12 @@ def create_app() -> FastAPI:
     @app.get("/ready", tags=["ops"], include_in_schema=False)
     async def ready(request: Request) -> dict[str, str]:
         try:
-            gate = request.app.state.approval_gate
             return {"status": "ready"}
         except AttributeError:
             return JSONResponse(status_code=503, content={"status": "not ready"})  # type: ignore[return-value]
 
     if settings.prometheus_enabled:
+
         @app.get("/metrics", tags=["ops"], include_in_schema=False)
         async def metrics() -> Response:
             return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)

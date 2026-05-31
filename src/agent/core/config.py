@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     prometheus_enabled: bool = True
 
     # ── File I/O ─────────────────────────────────────────────────────────────
-    file_io_allowed_paths: str = "/tmp,/workspace"  # noqa: S108
+    file_io_allowed_paths: str = "/tmp,/workspace"  # noqa: S108  # nosec B108
 
     @field_validator("log_level")
     @classmethod

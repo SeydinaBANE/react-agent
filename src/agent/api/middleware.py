@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from uuid import uuid4
 
 from fastapi import Request, Response
@@ -16,14 +16,16 @@ logger = get_logger(__name__)
 
 _OPEN_PATHS = {"/health", "/ready", "/metrics", "/docs", "/openapi.json", "/redoc"}
 
+_CallNext = Callable[[Request], Awaitable[Response]]
+
 
 class CorrelationIdMiddleware(BaseHTTPMiddleware):
     """Inject a correlation ID on every request; expose it in the response."""
 
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:  # type: ignore[override]
+    async def dispatch(self, request: Request, call_next: _CallNext) -> Response:
         cid = request.headers.get("X-Request-ID", str(uuid4()))
         set_correlation_id(cid)
-        response = await call_next(request)
+        response: Response = await call_next(request)
         response.headers["X-Request-ID"] = cid
         return response
 
@@ -36,7 +38,7 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         self._secret = secret_key
         self._algorithm = algorithm
 
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:  # type: ignore[override]
+    async def dispatch(self, request: Request, call_next: _CallNext) -> Response:
         if request.url.path in _OPEN_PATHS or request.method == "OPTIONS":
             return await call_next(request)
 
@@ -50,7 +52,8 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         except JWTError:
             return _problem(401, "Unauthorized", "Invalid or expired token.")
 
-        return await call_next(request)
+        response: Response = await call_next(request)
+        return response
 
 
 def _problem(status: int, title: str, detail: str) -> JSONResponse:
@@ -62,7 +65,7 @@ def _problem(status: int, title: str, detail: str) -> JSONResponse:
     )
 
 
-def rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:  # type: ignore[return]
+def rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
     body = ProblemDetail(
         title="Too Many Requests",
         status=429,
