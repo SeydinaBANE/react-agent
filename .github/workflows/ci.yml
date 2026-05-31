@@ -150,6 +150,7 @@ jobs:
         env:
           OPENROUTER_API_KEY: "sk-or-test-dummy"
           QDRANT_HOST: "localhost"
+          JWT_SECRET_KEY: "ci-dummy-secret-key-minimum-32-chars!!"  # pragma: allowlist secret
 
       - name: Validate schema exists and is valid JSON
         run: python -c "import json; json.load(open('openapi.json'))"
