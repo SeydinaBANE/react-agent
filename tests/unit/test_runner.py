@@ -1,4 +1,5 @@
 """Tests for ReactLoop, ApprovalGate, and Tracer."""
+
 from __future__ import annotations
 
 import asyncio
@@ -11,8 +12,8 @@ from agent.core.schemas import Action, AgentStep, TaskTrace
 from agent.runner.approval_gate import ApprovalGate
 from agent.runner.tracer import Tracer
 
-
 # ── Tracer ────────────────────────────────────────────────────────────────────
+
 
 class TestTracer:
     def _make_step(self, iteration: int = 1) -> AgentStep:
@@ -80,6 +81,7 @@ class TestTracer:
 
 # ── ApprovalGate ──────────────────────────────────────────────────────────────
 
+
 class TestApprovalGate:
     @pytest.mark.asyncio
     async def test_non_destructive_action_passes(self) -> None:
@@ -104,7 +106,7 @@ class TestApprovalGate:
             await asyncio.sleep(0.01)
             gate.resolve("task-2", approved=True)
 
-        asyncio.create_task(approve_after_delay())
+        _task = asyncio.create_task(approve_after_delay())  # noqa: RUF006
         approved = await gate.wait("task-2")
         assert approved is True
 
@@ -116,12 +118,13 @@ class TestApprovalGate:
             await asyncio.sleep(0.01)
             gate.resolve("task-3", approved=False)
 
-        asyncio.create_task(reject_after_delay())
+        _task2 = asyncio.create_task(reject_after_delay())  # noqa: RUF006
         approved = await gate.wait("task-3")
         assert approved is False
 
 
 # ── ReactLoop ─────────────────────────────────────────────────────────────────
+
 
 def _make_mock_llm(
     responses: list[tuple[str, str, dict[str, Any]]],
@@ -152,11 +155,18 @@ class TestReactLoop:
     def mock_registry(self) -> MagicMock:
         tool = MagicMock()
         tool.execute = AsyncMock(return_value="tool result")
-        tool.to_anthropic_schema.return_value = {"name": "web_search", "description": "search", "input_schema": {}}
+        tool.is_destructive = False
+        tool.to_anthropic_schema.return_value = {
+            "name": "web_search",
+            "description": "search",
+            "input_schema": {},
+        }
 
         registry = MagicMock()
         registry.get.return_value = tool
-        registry.all_schemas.return_value = [{"name": "web_search", "description": "search", "input_schema": {}}]
+        registry.all_schemas.return_value = [
+            {"name": "web_search", "description": "search", "input_schema": {}}
+        ]
         return registry
 
     @pytest.mark.asyncio
@@ -167,10 +177,12 @@ class TestReactLoop:
         from agent.runner.react_loop import ReactLoop
         from agent.runner.tracer import Tracer
 
-        llm = _make_mock_llm([
-            ("Let me search", "web_search", {"query": "test"}),
-            ("I have the answer", "final_answer", {"answer": "42"}),
-        ])
+        llm = _make_mock_llm(
+            [
+                ("Let me search", "web_search", {"query": "test"}),
+                ("I have the answer", "final_answer", {"answer": "42"}),
+            ]
+        )
 
         loop = ReactLoop(
             llm=llm,
@@ -197,9 +209,7 @@ class TestReactLoop:
         from agent.runner.tracer import Tracer
 
         # Always returns a non-final tool call → will hit max
-        llm = _make_mock_llm(
-            [("thinking", "web_search", {"query": "x"})] * 5
-        )
+        llm = _make_mock_llm([("thinking", "web_search", {"query": "x"})] * 5)
 
         loop = ReactLoop(
             llm=llm,

@@ -1,10 +1,9 @@
 """Tests for all tools (all external calls mocked)."""
+
 from __future__ import annotations
 
-import asyncio
 import tempfile
 from pathlib import Path
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -16,8 +15,8 @@ from agent.tools.file_io import FileIOTool
 from agent.tools.http_client import HttpClientTool
 from agent.tools.web_search import WebSearchTool
 
-
 # ── ToolRegistry ──────────────────────────────────────────────────────────────
+
 
 class TestToolRegistry:
     def _make_tool(self, name: str) -> BaseTool:
@@ -51,6 +50,7 @@ class TestToolRegistry:
 
 # ── WebSearchTool ─────────────────────────────────────────────────────────────
 
+
 class TestWebSearchTool:
     @pytest.mark.asyncio
     async def test_no_api_key_returns_disabled_message(self) -> None:
@@ -71,7 +71,7 @@ class TestWebSearchTool:
             }
         }
 
-        tool = WebSearchTool(api_key="test-key")
+        tool = WebSearchTool(api_key="BSAvalidtestkey1234567890")
         with patch("agent.tools.web_search.httpx.AsyncClient") as mock_client_cls:
             mock_client = AsyncMock()
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -86,6 +86,7 @@ class TestWebSearchTool:
 
 
 # ── CodeExecutorTool ──────────────────────────────────────────────────────────
+
 
 class TestCodeExecutorTool:
     @pytest.mark.asyncio
@@ -120,6 +121,7 @@ class TestCodeExecutorTool:
 
 # ── FileIOTool ────────────────────────────────────────────────────────────────
 
+
 class TestFileIOTool:
     @pytest.mark.asyncio
     async def test_write_and_read(self) -> None:
@@ -135,7 +137,7 @@ class TestFileIOTool:
 
     @pytest.mark.asyncio
     async def test_path_outside_whitelist_raises(self) -> None:
-        tool = FileIOTool(allowed_paths=["/tmp"])
+        tool = FileIOTool(allowed_paths=["/tmp"])  # noqa: S108
         with pytest.raises(ToolError, match="not within"):
             await tool.execute(operation="read", path="/etc/passwd")
 
@@ -148,6 +150,7 @@ class TestFileIOTool:
 
 
 # ── HttpClientTool ────────────────────────────────────────────────────────────
+
 
 class TestHttpClientTool:
     @pytest.mark.asyncio

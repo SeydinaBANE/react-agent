@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from typing import Any
 
 import httpx
@@ -23,13 +22,13 @@ class WebSearchTool(BaseTool):
         "Search the web for information. Use when you need up-to-date facts, "
         "recent papers, or any information not in your training data."
     )
-    input_schema: dict[str, Any] = {
+    input_schema: dict[str, Any] = {  # noqa: RUF012
         "type": "object",
         "properties": {
             "query": {"type": "string", "description": "The search query."},
             "max_results": {
                 "type": "integer",
-                "description": "Number of results to return (1–10).",
+                "description": "Number of results to return (1-10).",
                 "default": 5,
             },
         },
@@ -42,13 +41,13 @@ class WebSearchTool(BaseTool):
         self._timeout = timeout
         self._default_max_results = max_results
 
-    @retry(
+    @retry(  # type: ignore[misc]
         retry=retry_if_exception_type(httpx.TransportError),
         stop=stop_after_attempt(2),
         wait=wait_fixed(1),
         reraise=True,
     )
-    async def execute(self, **kwargs: Any) -> str:
+    async def execute(self, **kwargs: Any) -> str:  # noqa: ANN401
         query: str = kwargs["query"]
         max_results: int = min(int(kwargs.get("max_results", self._default_max_results)), 10)
 
@@ -60,7 +59,10 @@ class WebSearchTool(BaseTool):
                 async with httpx.AsyncClient(timeout=self._timeout) as client:
                     resp = await client.get(
                         _BRAVE_SEARCH_URL,
-                        headers={"Accept": "application/json", "X-Subscription-Token": self._api_key},
+                        headers={
+                            "Accept": "application/json",
+                            "X-Subscription-Token": self._api_key,
+                        },
                         params={"q": query, "count": max_results},
                     )
                     resp.raise_for_status()

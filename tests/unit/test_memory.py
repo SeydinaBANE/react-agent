@@ -1,16 +1,17 @@
 """Tests for memory module (Qdrant and embedder mocked)."""
+
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from agent.core.exceptions import MemoryError as AgentMemoryError
-from agent.core.schemas import AgentStep, Action, TaskTrace
+from agent.core.schemas import Action, AgentStep, TaskTrace
 from agent.memory.working import WorkingMemory
 
-
 # ── WorkingMemory ─────────────────────────────────────────────────────────────
+
 
 class TestWorkingMemory:
     def _make_wm(self, goal: str = "test goal") -> WorkingMemory:
@@ -55,6 +56,7 @@ class TestWorkingMemory:
 
 # ── EpisodicMemory (Qdrant mocked) ────────────────────────────────────────────
 
+
 class TestEpisodicMemory:
     @pytest.fixture
     def mock_embedder(self) -> MagicMock:
@@ -71,7 +73,9 @@ class TestEpisodicMemory:
         client.upsert = AsyncMock()
         scored = MagicMock()
         scored.payload = {"text": "past observation about RAG"}
-        client.search = AsyncMock(return_value=[scored])
+        query_result = MagicMock()
+        query_result.points = [scored]
+        client.query_points = AsyncMock(return_value=query_result)
         client.delete = AsyncMock()
         return client
 
