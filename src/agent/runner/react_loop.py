@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-import asyncio
 import time
-from collections.abc import AsyncIterator
 
 from agent.core.exceptions import (
     AgentError,
     HumanApprovalRequired,
     MaxIterationsError,
     ToolError,
+    ToolNotFoundError,
 )
 from agent.core.schemas import Action, AgentStep, TaskTrace
 from agent.core.telemetry import (
@@ -98,6 +97,13 @@ class ReactLoop:
                 logger.info("task_completed", task_id=wm.task_id, answer=answer[:80])
                 return
 
+            # Propagate the tool's is_destructive flag onto the Action so the gate fires
+            try:
+                registered = self._registry.get(action.tool)
+                action = action.model_copy(update={"is_destructive": registered.is_destructive})
+            except ToolNotFoundError:
+                pass  # _execute_tool will return an observation error
+
             # Approval gate for destructive tools
             try:
                 await self._gate.check(wm.task_id, action)
@@ -138,9 +144,12 @@ class ReactLoop:
         )
 
     async def _execute_tool(self, action: Action) -> str:
-        tool = self._registry.get(action.tool)
         try:
-            return await tool.execute(**action.input)
+            tool = self._registry.get(action.tool)
+            return await tool.execute(**action.input)  # type: ignore[attr-defined, no-any-return]
+        except ToolNotFoundError as exc:
+            logger.warning("tool_not_found", tool=action.tool, error=str(exc))
+            return f"[Tool not found] {exc} — available: {self._registry.names()}"
         except ToolError as exc:
             logger.warning("tool_error", tool=action.tool, error=str(exc))
             return f"[Tool error] {exc}"

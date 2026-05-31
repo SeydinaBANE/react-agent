@@ -1,34 +1,34 @@
 ---
-name: Bug report
-about: Report a reproducible bug
+name: Rapport de bug
+about: Signaler un bug reproductible
 labels: bug
 ---
 
-## Describe the bug
+## Description du bug
 
-<!-- Clear description of what the bug is -->
+<!-- Description claire du problème -->
 
-## Steps to reproduce
+## Étapes pour reproduire
 
 1.
 2.
 3.
 
-## Expected behavior
+## Comportement attendu
 
-<!-- What should happen -->
+<!-- Ce qui devrait se passer -->
 
-## Actual behavior
+## Comportement observé
 
-<!-- What actually happens, including error output -->
+<!-- Ce qui se passe réellement, avec la sortie d'erreur -->
 
-## Environment
+## Environnement
 
-- OS:
-- Python version:
-- `react-agent` version:
-- Docker version (if applicable):
+- OS :
+- Version Python :
+- Version `react-agent` :
+- Version Docker (si applicable) :
 
-## Additional context
+## Contexte supplémentaire
 
-<!-- Logs, screenshots, stack traces -->
+<!-- Logs, captures d'écran, traces d'appels -->

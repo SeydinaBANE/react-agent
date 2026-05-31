@@ -31,14 +31,10 @@ class Embedder:
 
     async def embed(self, text: str) -> list[float]:
         model = _load_model()
-        vectors = await asyncio.to_thread(
-            lambda: list(model.embed([text]))
-        )
-        return vectors[0].tolist()
+        vectors = await asyncio.to_thread(lambda: list(model.embed([text])))
+        return vectors[0].tolist()  # type: ignore[no-any-return]
 
     async def embed_batch(self, texts: list[str]) -> list[list[float]]:
         model = _load_model()
-        vectors = await asyncio.to_thread(
-            lambda: list(model.embed(texts))
-        )
+        vectors = await asyncio.to_thread(lambda: list(model.embed(texts)))
         return [v.tolist() for v in vectors]

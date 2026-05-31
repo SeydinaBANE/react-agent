@@ -37,6 +37,7 @@ def _add_correlation_id(
 
 # ── Structlog setup ───────────────────────────────────────────────────────────
 
+
 def configure_logging(log_level: str = "INFO", log_format: str = "json") -> None:
     shared_processors: list[structlog.types.Processor] = [
         structlog.contextvars.merge_contextvars,
@@ -58,9 +59,7 @@ def configure_logging(log_level: str = "INFO", log_format: str = "json") -> None
             *shared_processors,
             structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
         ],
-        wrapper_class=structlog.make_filtering_bound_logger(
-            logging.getLevelName(log_level)
-        ),
+        wrapper_class=structlog.make_filtering_bound_logger(logging.getLevelName(log_level)),
         context_class=dict,
         logger_factory=structlog.stdlib.LoggerFactory(),
         cache_logger_on_first_use=True,
@@ -80,7 +79,7 @@ def configure_logging(log_level: str = "INFO", log_format: str = "json") -> None
 
 
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
-    return structlog.get_logger(name)  # type: ignore[return-value]
+    return structlog.get_logger(name)  # type: ignore[no-any-return]
 
 
 # ── Prometheus metrics ────────────────────────────────────────────────────────

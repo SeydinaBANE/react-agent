@@ -7,7 +7,7 @@ from typing import Any
 import openai
 from tenacity import (
     retry,
-    retry_if_exception_type,
+    retry_if_exception,
     stop_after_attempt,
     wait_exponential,
 )
@@ -29,7 +29,9 @@ class LLMClient:
     a tool call (= Action) or the special `final_answer` call.
     """
 
-    def __init__(self, api_key: str, model: str, base_url: str = "https://openrouter.ai/api/v1") -> None:
+    def __init__(
+        self, api_key: str, model: str, base_url: str = "https://openrouter.ai/api/v1"
+    ) -> None:
         self._client = openai.AsyncOpenAI(
             api_key=api_key,
             base_url=base_url,
@@ -37,8 +39,8 @@ class LLMClient:
         )
         self._model = model
 
-    @retry(
-        retry=retry_if_exception_type((openai.RateLimitError, openai.APIStatusError)),
+    @retry(  # type: ignore[misc]
+        retry=retry_if_exception(lambda exc: isinstance(exc, LLMError) and exc.recoverable),
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=30),
         reraise=True,
@@ -68,15 +70,17 @@ class LLMClient:
         try:
             response = await self._client.chat.completions.create(
                 model=self._model,
-                messages=full_messages,  # type: ignore[arg-type]
-                tools=openai_tools,  # type: ignore[arg-type]
+                messages=full_messages,
+                tools=openai_tools,
                 tool_choice="required",
                 max_tokens=max_tokens,
             )
         except openai.RateLimitError as exc:
             raise LLMError("Rate limit hit — check OpenRouter credits.", status_code=429) from exc
         except openai.APIStatusError as exc:
-            raise LLMError(f"OpenRouter {exc.status_code}: {exc.message}", status_code=exc.status_code) from exc
+            raise LLMError(
+                f"OpenRouter {exc.status_code}: {exc.message}", status_code=exc.status_code
+            ) from exc
         except openai.APIError as exc:
             raise LLMError(f"OpenRouter API error: {exc}") from exc
         except KeyError as exc:
@@ -106,7 +110,9 @@ def _to_openai_tool(schema: dict[str, Any]) -> dict[str, Any]:
         "name": schema["name"],
         "description": schema.get("description", ""),
         # Anthropic uses "input_schema", OpenAI uses "parameters"
-        "parameters": schema.get("parameters", schema.get("input_schema", {"type": "object", "properties": {}})),
+        "parameters": schema.get(
+            "parameters", schema.get("input_schema", {"type": "object", "properties": {}})
+        ),
     }
     return {"type": "function", "function": function_def}
 
@@ -143,13 +149,10 @@ def _parse_response(response: openai.types.chat.ChatCompletion) -> tuple[str, Ac
 
     try:
         tool_input: dict[str, Any] = json.loads(raw_args)
-    except json.JSONDecodeError:
-        # Some models (esp. Haiku) occasionally produce truncated JSON.
-        # Treat it as a final_answer with the raw content rather than crashing.
+    except json.JSONDecodeError as exc:
         logger.warning("malformed_tool_json", tool=tool_name, raw=raw_args[:200])
-        return thought, Action(
-            tool="final_answer",
-            input={"answer": f"[Note: model returned malformed JSON, using raw output]\n{raw_args}"},
-        )
+        raise LLMError(
+            f"Model returned malformed JSON for tool '{tool_name}': {raw_args[:200]}"
+        ) from exc
 
     return thought, Action(tool=tool_name, input=tool_input)

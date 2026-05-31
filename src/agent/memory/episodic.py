@@ -94,7 +94,7 @@ class EpisodicMemory:
         try:
             await self._client.delete(
                 collection_name=self._collection,
-                points_selector=PointIdsList(points=[point_id]),  # type: ignore[arg-type]
+                points_selector=PointIdsList(points=[point_id]),
             )
         except Exception as exc:
             raise MemoryError(f"Delete failed: {exc}") from exc

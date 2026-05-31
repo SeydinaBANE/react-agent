@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-import json
 from collections.abc import AsyncIterator
-from datetime import datetime, timezone
 
 from agent.core.schemas import AgentStep, StepEvent, TaskTrace
 from agent.core.telemetry import get_logger
@@ -58,6 +56,10 @@ class Tracer:
             if event is None:
                 break
             yield event.to_sse()
+
+    @property
+    def trace(self) -> TaskTrace:
+        return self._trace
 
     def export_json(self) -> str:
         return self._trace.model_dump_json(indent=2)

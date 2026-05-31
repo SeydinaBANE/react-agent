@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     # ── LLM (OpenRouter) ─────────────────────────────────────────────────────
     openrouter_api_key: str = Field(..., min_length=10)
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
-    agent_model: str = "anthropic/claude-3.5-sonnet"
+    agent_model: str = "anthropic/claude-haiku-4.5"
 
     # ── Brave Search ─────────────────────────────────────────────────────────
     brave_api_key: str = ""
@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     prometheus_enabled: bool = True
 
     # ── File I/O ─────────────────────────────────────────────────────────────
-    file_io_allowed_paths: str = "/tmp,/workspace"
+    file_io_allowed_paths: str = "/tmp,/workspace"  # noqa: S108
 
     @field_validator("log_level")
     @classmethod

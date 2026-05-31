@@ -1,6 +1,6 @@
 # TODO — ReAct Agent
 
-## Phase 1 — Scaffold + tooling [✓]
+## Phase 1 — Scaffold + tooling [✓] (commit: 9c209d9)
 - [x] git init
 - [x] pyproject.toml (PEP 621, ruff strict, mypy strict, commitizen)
 - [x] Makefile (20+ commandes, .PHONY)

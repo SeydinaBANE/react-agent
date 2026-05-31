@@ -26,7 +26,7 @@ class CodeExecutorTool(BaseTool):
         "data transformations, or generating formatted output. "
         "Network access and file I/O are not available inside the executor."
     )
-    input_schema: dict[str, Any] = {
+    input_schema: dict[str, Any] = {  # noqa: RUF012
         "type": "object",
         "properties": {
             "code": {"type": "string", "description": "Python code to execute."},
@@ -39,7 +39,7 @@ class CodeExecutorTool(BaseTool):
         self._timeout = timeout_s
         self._enabled = enabled
 
-    async def execute(self, **kwargs: Any) -> str:
+    async def execute(self, **kwargs: Any) -> str:  # noqa: ANN401
         if not self._enabled:
             return "[code_executor is disabled in this environment]"
 
@@ -85,10 +85,13 @@ else:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        stdout, stderr = await asyncio.wait_for(
-            proc.communicate(), timeout=float(timeout_s)
-        )
-    except asyncio.TimeoutError as exc:
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=float(timeout_s))
+    except TimeoutError as exc:
+        try:
+            proc.kill()
+            await proc.wait()
+        except ProcessLookupError:
+            pass  # process already exited before we could kill it
         raise ToolTimeoutError("code_executor", timeout_s) from exc
 
     output = stdout.decode(errors="replace") + stderr.decode(errors="replace")
